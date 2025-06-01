@@ -110,7 +110,7 @@ class _MenuCard extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(icon, size: 48),
+            Icon(icon, size: 48, color: Colors.green),
             const SizedBox(height: 16),
             Text(
               title,

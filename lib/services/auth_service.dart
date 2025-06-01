@@ -1,3 +1,6 @@
+import 'package:http/http.dart' as http;
+import 'package:reg_team_app/constants/api_constants.dart';
+import 'package:reg_team_app/services/api_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/user.dart';
 
@@ -14,30 +17,21 @@ class AuthService {
     _prefs = await SharedPreferences.getInstance();
   }
 
-  Future<User?> login(String username, String password) async {
-    // Mock backend authentication
-    await Future.delayed(const Duration(seconds: 1));
+  Future<User?> login(String membershipNumber) async {
+    final response = await ApiService.login("Auth/token", {
+      "userName": membershipNumber
+    });
     
-    if (username == 'admin' && password == 'password') {
-      final user = User(
-        id: '1',
-        name: 'Admin User',
-        role: 'admin',
-      );
-      
-      // Store user data
-      await _prefs.setString(_userKey, 'logged_in');
-      return user;
-    }
+    final userDetails = User.fromJson(response["data"]);
     
-    return null;
+    return userDetails;
   }
 
   Future<void> logout() async {
-    await _prefs.remove(_userKey);
+    await _prefs.remove("auth_token");
   }
 
   Future<bool> isLoggedIn() async {
-    return _prefs.getString(_userKey) != null;
+    return _prefs.getString("auth_token") != null;
   }
 } 

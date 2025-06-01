@@ -1,20 +1,23 @@
 class User {
-  final String id;
-  final String name;
-  final String role;
+  final String memberNo;
+  final String firstName;
+  final String lastName;
+  final List<dynamic> roles;
 
   User({
-    required this.id,
-    required this.name,
-    required this.role,
+    required this.memberNo,
+    required this.firstName,
+    required this.lastName,
+    required this.roles,
   });
 
   // Mock factory method
   factory User.fromJson(Map<String, dynamic> json) {
     return User(
-      id: json['id'] as String,
-      name: json['name'] as String,
-      role: json['role'] as String,
+      memberNo: json['userName'] as String,
+      firstName: json['firstName'] as String,
+      lastName: json['lastName'] as String,
+      roles: json['roles'] as List<dynamic>,
     );
   }
 } 
