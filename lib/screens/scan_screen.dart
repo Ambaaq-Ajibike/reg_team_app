@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:qr_code_scanner/qr_code_scanner.dart';
 import '../services/member_service.dart';
 import '../services/api_service.dart';
+import '../services/offline_queue_service.dart';
 import '../models/member.dart';
 import '../utils/toast_utils.dart';
 
@@ -76,18 +77,30 @@ class _ScanScreenState extends State<ScanScreen> {
         
         setState(() => _processingMessage = 'Checking in participant...');
         final regNo = uri.queryParameters['regNo']!;
-        final response = await ApiService.checkInParticipant(regNo);
         
-        if (!mounted) return;
+        // Check if online
+        final isOnline = await OfflineQueueService.isOnline();
         
-        if (response != null) {
-          if (response.status) {
-            ToastUtils.showSuccessToast(currentContext, response.message);
+        if (isOnline) {
+          final response = await ApiService.checkInParticipant(regNo);
+          
+          if (!mounted) return;
+          
+          if (response != null) {
+            if (response.status) {
+              ToastUtils.showSuccessToast(currentContext, response.message);
+            } else {
+              ToastUtils.showWarningToast(currentContext, response.message);
+            }
           } else {
-            ToastUtils.showWarningToast(currentContext, response.message);
+            ToastUtils.showErrorToast(currentContext, 'Failed to check in participant');
           }
         } else {
-          ToastUtils.showErrorToast(currentContext, 'Failed to check in participant');
+          // Queue for offline processing
+          await OfflineQueueService.queueParticipantCheckIn(regNo);
+          
+          if (!mounted) return;
+          ToastUtils.showSuccessToast(currentContext, 'Participant check-in queued for offline processing. Sync when online.');
         }
       }
       // Check for manifest scan URL pattern
@@ -97,18 +110,30 @@ class _ScanScreenState extends State<ScanScreen> {
         
         setState(() => _processingMessage = 'Scanning manifest...');
         final qrCode = uri.queryParameters['QRCode']!;
-        final response = await ApiService.scanManifest(qrCode);
         
-        if (!mounted) return;
+        // Check if online
+        final isOnline = await OfflineQueueService.isOnline();
         
-        if (response != null) {
-          if (response.status) {
-            ToastUtils.showSuccessToast(currentContext, response.message);
+        if (isOnline) {
+          final response = await ApiService.scanManifest(qrCode);
+          
+          if (!mounted) return;
+          
+          if (response != null) {
+            if (response.status) {
+              ToastUtils.showSuccessToast(currentContext, response.message);
+            } else {
+              ToastUtils.showWarningToast(currentContext, response.message);
+            }
           } else {
-            ToastUtils.showWarningToast(currentContext, response.message);
+            ToastUtils.showErrorToast(currentContext, 'Failed to scan manifest');
           }
         } else {
-          ToastUtils.showErrorToast(currentContext, 'Failed to scan manifest');
+          // Queue for offline processing
+          await OfflineQueueService.queueManifestScan(qrCode);
+          
+          if (!mounted) return;
+          ToastUtils.showSuccessToast(currentContext, 'Manifest scan queued for offline processing. Sync when online.');
         }
       }
       // Unknown URL pattern
@@ -143,10 +168,21 @@ class _ScanScreenState extends State<ScanScreen> {
           ElevatedButton(
             onPressed: () async {
               try {
-                await MemberService().checkInMember(member, '1'); // Mock user ID
-                if (!mounted) return;
-                Navigator.pop(context);
-                ToastUtils.showSuccessToast(dialogContext, 'Member checked in successfully');
+                // Check if online
+                final isOnline = await OfflineQueueService.isOnline();
+                
+                if (isOnline) {
+                  await MemberService().checkInMember(member, '1'); // Mock user ID
+                  if (!mounted) return;
+                  Navigator.pop(context);
+                  ToastUtils.showSuccessToast(dialogContext, 'Member checked in successfully');
+                } else {
+                  // Queue for offline processing
+                  await OfflineQueueService.queueMemberCheckIn(member.memberNumber, '1');
+                  if (!mounted) return;
+                  Navigator.pop(context);
+                  ToastUtils.showSuccessToast(dialogContext, 'Member check-in queued for offline processing. Sync when online.');
+                }
               } catch (e) {
                 ToastUtils.showErrorToast(dialogContext, 'Error: ${e.toString()}');
               }

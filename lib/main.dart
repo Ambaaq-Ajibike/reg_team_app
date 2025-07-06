@@ -4,6 +4,7 @@ import 'router/app_router.dart';
 import 'services/auth_service.dart';
 import 'services/member_service.dart';
 import 'providers/auth_provider.dart';
+import 'providers/connectivity_provider.dart';
 import 'theme/app_theme.dart';
 
 void main() async {
@@ -40,13 +41,20 @@ class _MyAppState extends State<MyApp> {
 
   @override
   Widget build(BuildContext context) {
-    return ChangeNotifierProvider(
-      create: (context) {
-        final authProvider = AuthProvider();
-        // Initialize auth state
-        authProvider.initialize();
-        return authProvider;
-      },
+    return MultiProvider(
+      providers: [
+        ChangeNotifierProvider(
+          create: (context) {
+            final authProvider = AuthProvider();
+            // Initialize auth state
+            authProvider.initialize();
+            return authProvider;
+          },
+        ),
+        ChangeNotifierProvider(
+          create: (context) => ConnectivityProvider(),
+        ),
+      ],
       child: Consumer<AuthProvider>(
         builder: (context, authProvider, child) {
           return MaterialApp.router(

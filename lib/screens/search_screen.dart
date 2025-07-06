@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../services/member_service.dart';
+import '../services/offline_queue_service.dart';
 import '../models/member.dart';
 import '../utils/toast_utils.dart';
 
@@ -50,10 +51,21 @@ class _SearchScreenState extends State<SearchScreen> {
 
   Future<void> _checkInMember(Member member) async {
     try {
-      await MemberService().checkInMember(member, '1'); // Mock user ID
-      if (!mounted) return;
-      ToastUtils.showSuccessToast(context, 'Member checked in successfully');
-      _search(); // Refresh the list
+      // Check if online
+      final isOnline = await OfflineQueueService.isOnline();
+      
+      if (isOnline) {
+        await MemberService().checkInMember(member, '1'); // Mock user ID
+        if (!mounted) return;
+        ToastUtils.showSuccessToast(context, 'Member checked in successfully');
+        _search(); // Refresh the list
+      } else {
+        // Queue for offline processing
+        await OfflineQueueService.queueMemberCheckIn(member.memberNumber, '1');
+        if (!mounted) return;
+        ToastUtils.showSuccessToast(context, 'Member check-in queued for offline processing. Sync when online.');
+        _search(); // Refresh the list
+      }
     } catch (e) {
       if (!mounted) return;
       ToastUtils.showErrorToast(context, 'Error: ${e.toString()}');

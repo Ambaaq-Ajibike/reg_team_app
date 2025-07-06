@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../services/api_service.dart';
+import '../services/offline_queue_service.dart';
 import '../models/member_details.dart';
 import '../utils/toast_utils.dart';
 
@@ -95,36 +96,63 @@ class _MemberRegistrationScreenState extends State<MemberRegistrationScreen> {
       });
 
       try {
-        final response = await ApiService.bulkRegisterMembers(membershipNumbers);
+        // Check if online
+        final isOnline = await OfflineQueueService.isOnline();
         
-        if (mounted) {
-          setState(() {
-            _isSubmitting = false;
-          });
+        if (isOnline) {
+          // Try online registration
+          final response = await ApiService.bulkRegisterMembers(membershipNumbers);
+          
+          if (mounted) {
+            setState(() {
+              _isSubmitting = false;
+            });
 
-          if (response != null) {
-            // Show all messages as toasts
-            if (response.messages.isNotEmpty) {
-              ToastUtils.showMultipleToasts(context, response.messages);
-            }
-
-            // If registration was successful, clear the form
-            if (response.succeeded && response.data.isNotEmpty) {
-              // Clear all fields
-              for (var controller in _membershipControllers) {
-                controller.clear();
+            if (response != null) {
+              // Show all messages as toasts
+              if (response.messages.isNotEmpty) {
+                ToastUtils.showMultipleToasts(context, response.messages);
               }
-              setState(() {
-                _memberDetails.clear();
-                _loadingStates.clear();
-                _debounceTimers.clear();
-              });
-              
-              // Show success toast
-              ToastUtils.showSuccessToast(context, 'Successfully registered ${response.data.length} member(s)');
+
+              // If registration was successful, clear the form
+              if (response.succeeded && response.data.isNotEmpty) {
+                // Clear all fields
+                for (var controller in _membershipControllers) {
+                  controller.clear();
+                }
+                setState(() {
+                  _memberDetails.clear();
+                  _loadingStates.clear();
+                  _debounceTimers.clear();
+                });
+                
+                // Show success toast
+                ToastUtils.showSuccessToast(context, 'Successfully registered ${response.data.length} member(s)');
+              }
+            } else {
+              ToastUtils.showErrorToast(context, 'Failed to register members. Please try again.');
             }
-          } else {
-            ToastUtils.showErrorToast(context, 'Failed to register members. Please try again.');
+          }
+        } else {
+          // Queue for offline processing
+          await OfflineQueueService.queueMemberRegistration(membershipNumbers);
+          
+          if (mounted) {
+            setState(() {
+              _isSubmitting = false;
+            });
+            
+            // Clear all fields
+            for (var controller in _membershipControllers) {
+              controller.clear();
+            }
+            setState(() {
+              _memberDetails.clear();
+              _loadingStates.clear();
+              _debounceTimers.clear();
+            });
+            
+            ToastUtils.showSuccessToast(context, 'Members queued for offline registration. Sync when online.');
           }
         }
       } catch (e) {

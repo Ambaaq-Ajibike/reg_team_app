@@ -31,6 +31,19 @@ class GuestRegistrationRequest {
       'address': address,
     };
   }
+
+  factory GuestRegistrationRequest.fromJson(Map<String, dynamic> json) {
+    return GuestRegistrationRequest(
+      guestOwner: json['guestOwner'] ?? '',
+      lastName: json['lastName'] ?? '',
+      firstName: json['firstName'] ?? '',
+      middleName: json['middleName'] ?? '',
+      phoneNumber: json['phoneNumber'] ?? '',
+      email: json['email'] ?? '',
+      gender: json['gender'] ?? '',
+      address: json['address'] ?? '',
+    );
+  }
 }
 
 class GuestRegistrationResponse {

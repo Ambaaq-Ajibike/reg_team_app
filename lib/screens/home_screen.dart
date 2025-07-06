@@ -3,6 +3,7 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
+import '../providers/connectivity_provider.dart';
 
 class HomeScreen extends StatelessWidget {
   final VoidCallback onThemeToggle;
@@ -28,6 +29,30 @@ class HomeScreen extends StatelessWidget {
       appBar: AppBar(
         title: const Text('Jalsa Registration'),
         actions: [
+          Consumer<ConnectivityProvider>(
+            builder: (context, connectivityProvider, child) {
+              return IconButton(
+                icon: Icon(
+                  connectivityProvider.isOnline 
+                      ? Icons.wifi 
+                      : Icons.wifi_off,
+                  color: connectivityProvider.isOnline 
+                      ? Colors.green 
+                      : Colors.red,
+                ),
+                onPressed: () {
+                  if (!connectivityProvider.isOnline) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('You are currently offline. Actions will be queued for sync.'),
+                        duration: Duration(seconds: 3),
+                      ),
+                    );
+                  }
+                },
+              );
+            },
+          ),
           IconButton(
             icon: Icon(isDarkMode ? Icons.light_mode : Icons.dark_mode),
             onPressed: onThemeToggle,

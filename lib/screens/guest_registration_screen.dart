@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import '../models/guest_registration.dart';
 import '../models/member_details.dart';
 import '../services/api_service.dart';
+import '../services/offline_queue_service.dart';
 import '../utils/toast_utils.dart';
 
 class GuestRegistrationScreen extends StatefulWidget {
@@ -95,8 +96,11 @@ class _GuestRegistrationScreenState extends State<GuestRegistrationScreen> {
 
   Future<void> _submitForm() async {
     if (_formKey.currentState!.validate()) {
-      // Validate that guest owner is a valid member
-      if (_guestOwnerDetails == null) {
+      // Check if online to determine if we need to validate member
+      final isOnline = await OfflineQueueService.isOnline();
+      
+      // Only require member validation if online
+      if (isOnline && _guestOwnerDetails == null) {
         ToastUtils.showWarningToast(context, 'Please validate the guest owner member number first');
         return;
       }
@@ -123,44 +127,73 @@ class _GuestRegistrationScreenState extends State<GuestRegistrationScreen> {
               ? "" 
               : _addressController.text.trim(),
         );
+        
+        if (isOnline) {
+          // Try online registration
+          final response = await ApiService.registerGuest(request);
 
-        final response = await ApiService.registerGuest(request);
+          if (mounted) {
+            setState(() {
+              _isSubmitting = false;
+            });
 
-        if (mounted) {
-          setState(() {
-            _isSubmitting = false;
-          });
+            if (response != null) {
+              if (response.succeeded) {
+                // Show success message
+                ToastUtils.showSuccessToast(
+                  context,
+                  response.messages.isNotEmpty 
+                      ? response.messages.first 
+                      : 'Guest registered successfully!'
+                );
 
-          if (response != null) {
-            if (response.succeeded) {
-              // Show success message
-              ToastUtils.showSuccessToast(
-                context,
-                response.messages.isNotEmpty 
-                    ? response.messages.first 
-                    : 'Guest registered successfully!'
-              );
-
-              // Clear all form fields
-              _guestOwnerController.clear();
-              _lastNameController.clear();
-              _firstNameController.clear();
-              _middleNameController.clear();
-              _phoneNumberController.clear();
-              _emailController.clear();
-              _addressController.clear();
-              
-              // Reset gender and member details
-              _selectedGender = 'Male';
-              _guestOwnerDetails = null;
-              
-              setState(() {});
+                // Clear all form fields
+                _guestOwnerController.clear();
+                _lastNameController.clear();
+                _firstNameController.clear();
+                _middleNameController.clear();
+                _phoneNumberController.clear();
+                _emailController.clear();
+                _addressController.clear();
+                
+                // Reset gender and member details
+                _selectedGender = 'Male';
+                _guestOwnerDetails = null;
+                
+                setState(() {});
+              } else {
+                // Show error messages
+                ToastUtils.showMultipleToasts(context, response.messages);
+              }
             } else {
-              // Show error messages
-              ToastUtils.showMultipleToasts(context, response.messages);
+              ToastUtils.showErrorToast(context, 'Failed to register guest. Please try again.');
             }
-          } else {
-            ToastUtils.showErrorToast(context, 'Failed to register guest. Please try again.');
+          }
+        } else {
+          // Queue for offline processing
+          await OfflineQueueService.queueGuestRegistration(request);
+          
+          if (mounted) {
+            setState(() {
+              _isSubmitting = false;
+            });
+            
+            // Clear all form fields
+            _guestOwnerController.clear();
+            _lastNameController.clear();
+            _firstNameController.clear();
+            _middleNameController.clear();
+            _phoneNumberController.clear();
+            _emailController.clear();
+            _addressController.clear();
+            
+            // Reset gender and member details
+            _selectedGender = 'Male';
+            _guestOwnerDetails = null;
+            
+            setState(() {});
+            
+            ToastUtils.showSuccessToast(context, 'Guest queued for offline registration. Sync when online.');
           }
         }
       } catch (e) {
@@ -230,9 +263,18 @@ class _GuestRegistrationScreenState extends State<GuestRegistrationScreen> {
                                 child: CircularProgressIndicator(strokeWidth: 2),
                               ),
                             )
-                          : IconButton(
-                              icon: const Icon(Icons.search),
-                              onPressed: _validateGuestOwner,
+                          : FutureBuilder<bool>(
+                              future: OfflineQueueService.isOnline(),
+                              builder: (context, snapshot) {
+                                final isOnline = snapshot.data ?? true;
+                                return IconButton(
+                                  icon: const Icon(Icons.search),
+                                  onPressed: isOnline ? _validateGuestOwner : null,
+                                  tooltip: isOnline 
+                                      ? 'Validate member number' 
+                                      : 'Member validation not available offline',
+                                );
+                              },
                             ),
                     ),
                     keyboardType: TextInputType.number,
@@ -268,6 +310,38 @@ class _GuestRegistrationScreenState extends State<GuestRegistrationScreen> {
                           ],
                         ),
                       ),
+                    ),
+                  ] else ...[
+                    // Show offline indicator when no member details and offline
+                    FutureBuilder<bool>(
+                      future: OfflineQueueService.isOnline(),
+                      builder: (context, snapshot) {
+                        final isOnline = snapshot.data ?? true;
+                        if (!isOnline) {
+                          return const Padding(
+                            padding: EdgeInsets.only(top: 8.0),
+                            child: Card(
+                              color: Colors.orange,
+                              child: Padding(
+                                padding: EdgeInsets.all(12.0),
+                                child: Row(
+                                  children: [
+                                    Icon(Icons.wifi_off, color: Colors.white),
+                                    SizedBox(width: 8),
+                                    Expanded(
+                                      child: Text(
+                                        'Member validation not required offline. Will use default member if not found during sync.',
+                                        style: TextStyle(color: Colors.white),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          );
+                        }
+                        return const SizedBox.shrink();
+                      },
                     ),
                   ],
                 ],

@@ -94,6 +94,13 @@ class MemberService {
     }
   }
 
+  Future<void> checkInMemberOffline(String memberNumber, String userId) async {
+    // Mock backend API call for offline check-in
+    await Future.delayed(const Duration(milliseconds: 500));
+    // In a real implementation, this would call the actual API
+    print('Offline check-in processed for member: $memberNumber by user: $userId');
+  }
+
   Future<void> syncOfflineData() async {
     final queue = await _getOfflineQueue();
     if (queue.isEmpty) return;
