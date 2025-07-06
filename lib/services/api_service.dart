@@ -7,6 +7,7 @@ import 'package:reg_team_app/models/member_details.dart';
 import 'package:reg_team_app/models/registration_response.dart';
 import 'package:reg_team_app/models/guest_registration.dart';
 import 'package:reg_team_app/models/auth_response.dart';
+import 'package:reg_team_app/models/scan_response.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class ApiService {
@@ -153,6 +154,64 @@ class ApiService {
       return null;
     } catch (e) {
       print('Error registering guest: $e');
+      return null;
+    }
+  }
+
+  static Future<ScanResponse?> checkInParticipant(String regNo) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('auth_token');
+      
+      if (token == null) {
+        throw Exception('No authentication token found');
+      }
+
+      final url = Uri.parse('https://jarms.ahmadiyyanigeria.net/api/Participants/inapp-checkin?regNo=$regNo');
+      final response = await http.put(
+        url,
+        headers: {
+          'accept': 'text/plain',
+          'Authorization': 'Bearer $token',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final jsonResponse = jsonDecode(response.body);
+        return ScanResponse.fromJson(jsonResponse);
+      }
+      return null;
+    } catch (e) {
+      print('Error checking in participant: $e');
+      return null;
+    }
+  }
+
+  static Future<ScanResponse?> scanManifest(String qrCode) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('auth_token');
+      
+      if (token == null) {
+        throw Exception('No authentication token found');
+      }
+
+      final url = Uri.parse('https://jarms.ahmadiyyanigeria.net/api/Manifests/inapp-scan?QRCode=$qrCode');
+      final response = await http.get(
+        url,
+        headers: {
+          'accept': 'text/plain',
+          'Authorization': 'Bearer $token',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final jsonResponse = jsonDecode(response.body);
+        return ScanResponse.fromJson(jsonResponse);
+      }
+      return null;
+    } catch (e) {
+      print('Error scanning manifest: $e');
       return null;
     }
   }

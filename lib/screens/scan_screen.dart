@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:qr_code_scanner/qr_code_scanner.dart';
 import '../services/member_service.dart';
+import '../services/api_service.dart';
 import '../models/member.dart';
 import '../utils/toast_utils.dart';
 
@@ -15,6 +16,7 @@ class _ScanScreenState extends State<ScanScreen> {
   final GlobalKey qrKey = GlobalKey(debugLabel: 'QR');
   QRViewController? controller;
   bool _isProcessing = false;
+  String _processingMessage = 'Processing...';
 
   @override
   void dispose() {
@@ -28,17 +30,29 @@ class _ScanScreenState extends State<ScanScreen> {
       final currentContext = context;
       if (_isProcessing || scanData.code == null) return;
       
-      setState(() => _isProcessing = true);
+      setState(() {
+        _isProcessing = true;
+        _processingMessage = 'Processing...';
+      });
       controller.pauseCamera();
 
       try {
-        final member = await MemberService().getMemberByTag(scanData.code!);
-        if (!mounted) return;
-
-        if (member != null) {
-          await _showMemberDialog(member, currentContext);
+        final scannedCode = scanData.code!;
+        
+        // Check if it's a URL
+        if (scannedCode.startsWith('http')) {
+          await _handleUrlScan(scannedCode, currentContext);
         } else {
-          ToastUtils.showWarningToast(currentContext, 'Member not found');
+          // Handle member tag scan (existing functionality)
+          setState(() => _processingMessage = 'Looking up member...');
+          final member = await MemberService().getMemberByTag(scannedCode);
+          if (!mounted) return;
+
+          if (member != null) {
+            await _showMemberDialog(member, currentContext);
+          } else {
+            ToastUtils.showWarningToast(currentContext, 'Member not found');
+          }
         }
       } catch (e) {
         ToastUtils.showErrorToast(currentContext, 'Error: ${e.toString()}');
@@ -49,6 +63,61 @@ class _ScanScreenState extends State<ScanScreen> {
         }
       }
     });
+  }
+
+  Future<void> _handleUrlScan(String url, BuildContext currentContext) async {
+    try {
+      final uri = Uri.parse(url);
+      
+      // Check for participant check-in URL pattern
+      if (uri.host.contains('jarms.ahmadiyyanigeria.net') && 
+          uri.path.contains('checkIn') && 
+          uri.queryParameters.containsKey('regNo')) {
+        
+        setState(() => _processingMessage = 'Checking in participant...');
+        final regNo = uri.queryParameters['regNo']!;
+        final response = await ApiService.checkInParticipant(regNo);
+        
+        if (!mounted) return;
+        
+        if (response != null) {
+          if (response.status) {
+            ToastUtils.showSuccessToast(currentContext, response.message);
+          } else {
+            ToastUtils.showWarningToast(currentContext, response.message);
+          }
+        } else {
+          ToastUtils.showErrorToast(currentContext, 'Failed to check in participant');
+        }
+      }
+      // Check for manifest scan URL pattern
+      else if ((uri.host.contains('localhost') || uri.host.contains('jarms.ahmadiyyanigeria.net')) && 
+               uri.path.contains('Manifest') && 
+               uri.queryParameters.containsKey('QRCode')) {
+        
+        setState(() => _processingMessage = 'Scanning manifest...');
+        final qrCode = uri.queryParameters['QRCode']!;
+        final response = await ApiService.scanManifest(qrCode);
+        
+        if (!mounted) return;
+        
+        if (response != null) {
+          if (response.status) {
+            ToastUtils.showSuccessToast(currentContext, response.message);
+          } else {
+            ToastUtils.showWarningToast(currentContext, response.message);
+          }
+        } else {
+          ToastUtils.showErrorToast(currentContext, 'Failed to scan manifest');
+        }
+      }
+      // Unknown URL pattern
+      else {
+        ToastUtils.showWarningToast(currentContext, 'Unknown URL pattern: $url');
+      }
+    } catch (e) {
+      ToastUtils.showErrorToast(currentContext, 'Error processing URL: ${e.toString()}');
+    }
   }
 
   Future<void> _showMemberDialog(Member member, BuildContext dialogContext) async {
@@ -93,7 +162,7 @@ class _ScanScreenState extends State<ScanScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Scan Member'),
+        title: const Text('Scan QR Code'),
       ),
       body: Stack(
         children: [
@@ -111,8 +180,21 @@ class _ScanScreenState extends State<ScanScreen> {
           if (_isProcessing)
             Container(
               color: Colors.black54,
-              child: const Center(
-                child: CircularProgressIndicator(),
+              child: Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const CircularProgressIndicator(),
+                    const SizedBox(height: 16),
+                    Text(
+                      _processingMessage,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 16,
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
         ],
