@@ -4,6 +4,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart';
 import '../services/member_service.dart';
 import '../models/member.dart';
+import '../utils/toast_utils.dart';
 
 class PaperListScreen extends StatefulWidget {
   const PaperListScreen({super.key});
@@ -66,11 +67,13 @@ class _PaperListScreenState extends State<PaperListScreen> {
 
       setState(() => _foundMembers = members);
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: ${e.toString()}')),
-      );
+      if (mounted) {
+        ToastUtils.showErrorToast(context, 'Error: ${e.toString()}');
+      }
     } finally {
-      setState(() => _isProcessing = false);
+      if (mounted) {
+        setState(() => _isProcessing = false);
+      }
     }
   }
 
@@ -79,9 +82,7 @@ class _PaperListScreenState extends State<PaperListScreen> {
         _foundMembers.where((member) => !member.isCheckedIn).toList();
 
     if (selectedMembers.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('No members to check in')),
-      );
+      ToastUtils.showWarningToast(context, 'No members to check in');
       return;
     }
 
@@ -93,11 +94,7 @@ class _PaperListScreenState extends State<PaperListScreen> {
       }
 
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('All selected members checked in successfully'),
-        ),
-      );
+      ToastUtils.showSuccessToast(context, 'All selected members checked in successfully');
 
       // Reset the screen
       setState(() {
@@ -107,9 +104,7 @@ class _PaperListScreenState extends State<PaperListScreen> {
       });
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: ${e.toString()}')),
-      );
+      ToastUtils.showErrorToast(context, 'Error: ${e.toString()}');
     } finally {
       if (mounted) {
         setState(() => _isProcessing = false);

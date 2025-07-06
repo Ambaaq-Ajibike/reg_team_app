@@ -1,5 +1,3 @@
-import 'package:http/http.dart' as http;
-import 'package:reg_team_app/constants/api_constants.dart';
 import 'package:reg_team_app/services/api_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/user.dart';
@@ -18,13 +16,13 @@ class AuthService {
   }
 
   Future<User?> login(String membershipNumber) async {
-    final response = await ApiService.login("Auth/token", {
-      "userName": membershipNumber
-    });
+    final response = await ApiService.login(membershipNumber);
     
-    final userDetails = User.fromJson(response["data"]);
+    if (response.status) {
+      return User.fromJson(response.data.toJson());
+    }
     
-    return userDetails;
+    return null;
   }
 
   Future<void> logout() async {

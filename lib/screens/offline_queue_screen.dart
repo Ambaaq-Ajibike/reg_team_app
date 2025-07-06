@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import '../services/member_service.dart';
+import '../utils/toast_utils.dart';
 
 class OfflineQueueScreen extends StatefulWidget {
   const OfflineQueueScreen({super.key});
@@ -17,15 +19,11 @@ class _OfflineQueueScreenState extends State<OfflineQueueScreen> {
     try {
       await MemberService().syncOfflineData();
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Data synced successfully')),
-      );
-      Navigator.pop(context); // Return to home screen after sync
+      ToastUtils.showSuccessToast(context, 'Data synced successfully');
+      context.pop(); // Return to home screen after sync
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: ${e.toString()}')),
-      );
+      ToastUtils.showErrorToast(context, 'Error: ${e.toString()}');
     } finally {
       if (mounted) {
         setState(() => _isSyncing = false);

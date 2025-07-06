@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
-import '../services/auth_service.dart';
+import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
+import '../providers/auth_provider.dart';
 
 class HomeScreen extends StatelessWidget {
   final VoidCallback onThemeToggle;
@@ -11,9 +13,10 @@ class HomeScreen extends StatelessWidget {
   });
 
   Future<void> _logout(BuildContext context) async {
-    await AuthService().logout();
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    await authProvider.logout();
     if (context.mounted) {
-      Navigator.of(context).pushReplacementNamed('/login');
+      context.go('/login');
     }
   }
 
@@ -40,7 +43,7 @@ class HomeScreen extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.all(24.0),
             child: SvgPicture.asset(
-              'assets/images/logo.svg',
+              'assets/images/logo.png',
               height: 100,
             ),
           ),
@@ -54,32 +57,32 @@ class HomeScreen extends StatelessWidget {
                 _MenuCard(
                   icon: Icons.qr_code_scanner,
                   title: 'Scan Member',
-                  onTap: () => Navigator.pushNamed(context, '/scan'),
+                  onTap: () => context.push('/scan'),
                 ),
                 _MenuCard(
                   icon: Icons.search,
                   title: 'Search Member',
-                  onTap: () => Navigator.pushNamed(context, '/search'),
+                  onTap: () => context.push('/search'),
                 ),
                 _MenuCard(
                   icon: Icons.person_add,
                   title: 'Register Member',
-                  onTap: () => Navigator.pushNamed(context, '/register-member'),
+                  onTap: () => context.push('/register-member'),
                 ),
                 _MenuCard(
                   icon: Icons.person_add_alt_1,
                   title: 'Register Guest',
-                  onTap: () => Navigator.pushNamed(context, '/register-guest'),
+                  onTap: () => context.push('/register-guest'),
                 ),
                 _MenuCard(
                   icon: Icons.camera_alt,
                   title: 'Paper List',
-                  onTap: () => Navigator.pushNamed(context, '/paper-list'),
+                  onTap: () => context.push('/paper-list'),
                 ),
                 _MenuCard(
                   icon: Icons.sync,
                   title: 'Offline Queue',
-                  onTap: () => Navigator.pushNamed(context, '/offline-queue'),
+                  onTap: () => context.push('/offline-queue'),
                 ),
               ],
             ),

@@ -47,7 +47,6 @@ class AppTheme {
     colorScheme: ColorScheme.fromSeed(
       seedColor: primaryColor,
       brightness: Brightness.dark,
-      background: darkModeColor,
       surface: darkModeColor,
     ),
     scaffoldBackgroundColor: darkModeColor,

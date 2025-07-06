@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../services/member_service.dart';
 import '../models/member.dart';
+import '../utils/toast_utils.dart';
 
 class SearchScreen extends StatefulWidget {
   const SearchScreen({super.key});
@@ -38,9 +39,7 @@ class _SearchScreenState extends State<SearchScreen> {
       setState(() => _searchResults = results);
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: ${e.toString()}')),
-      );
+      ToastUtils.showErrorToast(context, 'Error: ${e.toString()}');
     } finally {
       if (mounted) {
         setState(() => _isLoading = false);
@@ -52,15 +51,11 @@ class _SearchScreenState extends State<SearchScreen> {
     try {
       await MemberService().checkInMember(member, '1'); // Mock user ID
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Member checked in successfully')),
-      );
+      ToastUtils.showSuccessToast(context, 'Member checked in successfully');
       _search(); // Refresh the list
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: ${e.toString()}')),
-      );
+      ToastUtils.showErrorToast(context, 'Error: ${e.toString()}');
     }
   }
 

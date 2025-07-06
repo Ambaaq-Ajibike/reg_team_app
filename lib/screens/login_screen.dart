@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_svg/flutter_svg.dart';
-import '../services/auth_service.dart';
+import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import '../services/api_service.dart';
+import '../providers/auth_provider.dart';
+import '../utils/toast_utils.dart';
 
 class LoginScreen extends StatefulWidget {
   final VoidCallback onThemeToggle;
@@ -32,17 +36,33 @@ class _LoginScreenState extends State<LoginScreen> {
       });
 
       try {
-        await AuthService().login(
-          _usernameController.text
-        );
-        if (mounted) {
-          Navigator.of(context).pushReplacementNamed('/home');
+        final authProvider = Provider.of<AuthProvider>(context, listen: false);
+        final response = await ApiService.login(_usernameController.text);
+        
+        if (response.status) {
+          // Get the token from SharedPreferences (stored by ApiService)
+          final prefs = await SharedPreferences.getInstance();
+          final token = prefs.getString('auth_token');
+          
+          if (token != null) {
+            // Set auth data in provider
+            authProvider.setAuthData(token, response.data);
+          } else {
+            throw Exception('Token not received from server');
+          }
+          
+          if (mounted) {
+            ToastUtils.showSuccessToast(context, response.message);
+            context.go('/home');
+          }
+        } else {
+          if (mounted) {
+            ToastUtils.showErrorToast(context, response.message);
+          }
         }
       } catch (e) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(e.toString())),
-          );
+          ToastUtils.showErrorToast(context, e.toString());
         }
       } finally {
         if (mounted) {
@@ -75,8 +95,8 @@ class _LoginScreenState extends State<LoginScreen> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              SvgPicture.asset(
-                'assets/images/logo.svg',
+              Image.asset(
+                'assets/images/logo.png',
                 height: 120,
               ),
               const SizedBox(height: 48),

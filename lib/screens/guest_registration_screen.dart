@@ -1,11 +1,15 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
-import '../models/guest.dart';
+import '../models/guest_registration.dart';
+import '../models/member_details.dart';
+import '../services/api_service.dart';
+import '../utils/toast_utils.dart';
 
 class GuestRegistrationScreen extends StatefulWidget {
-  const GuestRegistrationScreen({Key? key}) : super(key: key);
+  const GuestRegistrationScreen({super.key});
 
   @override
-  _GuestRegistrationScreenState createState() => _GuestRegistrationScreenState();
+  State<GuestRegistrationScreen> createState() => _GuestRegistrationScreenState();
 }
 
 class _GuestRegistrationScreenState extends State<GuestRegistrationScreen> {
@@ -18,8 +22,62 @@ class _GuestRegistrationScreenState extends State<GuestRegistrationScreen> {
   final _emailController = TextEditingController();
   final _addressController = TextEditingController();
   String _selectedGender = 'Male';
+  bool _isSubmitting = false;
+  MemberDetails? _guestOwnerDetails;
+  bool _isValidatingOwner = false;
+  Timer? _debounceTimer;
 
   final List<String> _genders = ['Male', 'Female', 'Other'];
+
+  Future<void> _validateGuestOwner() async {
+    final memberNumber = _guestOwnerController.text.trim();
+    if (memberNumber.isEmpty) {
+      setState(() {
+        _guestOwnerDetails = null;
+        _isValidatingOwner = false;
+      });
+      return;
+    }
+
+    setState(() {
+      _isValidatingOwner = true;
+    });
+
+    try {
+      final memberDetails = await ApiService.getMemberDetails(memberNumber);
+      if (mounted) {
+        setState(() {
+          _guestOwnerDetails = memberDetails;
+          _isValidatingOwner = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _guestOwnerDetails = null;
+          _isValidatingOwner = false;
+        });
+        ToastUtils.showErrorToast(context, 'Error validating member: ${e.toString()}');
+      }
+    }
+  }
+
+  void _onGuestOwnerChanged(String value) {
+    // Clear member details when text changes
+    setState(() {
+      _guestOwnerDetails = null;
+    });
+    
+    // Cancel previous timer
+    _debounceTimer?.cancel();
+    
+    // Set new timer for auto-fetch
+    if (value.trim().isNotEmpty) {
+      _debounceTimer = Timer(const Duration(milliseconds: 800), () {
+        _validateGuestOwner();
+      });
+    }
+  }
 
   @override
   void dispose() {
@@ -30,34 +88,88 @@ class _GuestRegistrationScreenState extends State<GuestRegistrationScreen> {
     _phoneNumberController.dispose();
     _emailController.dispose();
     _addressController.dispose();
+    _debounceTimer?.cancel();
     super.dispose();
   }
 
-  void _submitForm() {
+  Future<void> _submitForm() async {
     if (_formKey.currentState!.validate()) {
-      final guest = Guest(
-        guestOwner: _guestOwnerController.text,
-        lastName: _lastNameController.text,
-        firstName: _firstNameController.text,
-        middleName: _middleNameController.text,
-        phoneNumber: _phoneNumberController.text,
-        email: _emailController.text,
-        gender: _selectedGender,
-        address: _addressController.text,
-      );
+      // Validate that guest owner is a valid member
+      if (_guestOwnerDetails == null) {
+        ToastUtils.showWarningToast(context, 'Please validate the guest owner member number first');
+        return;
+      }
+      setState(() {
+        _isSubmitting = true;
+      });
 
-      // TODO: Process the guest registration (e.g., send to API)
-      print('Guest to register: ${guest.toJson()}');
+      try {
+        final request = GuestRegistrationRequest(
+          guestOwner: _guestOwnerController.text.trim(),
+          lastName: _lastNameController.text.trim(),
+          firstName: _firstNameController.text.trim(),
+          middleName: _middleNameController.text.trim().isEmpty 
+              ? "" 
+              : _middleNameController.text.trim(),
+          phoneNumber: _phoneNumberController.text.trim().isEmpty 
+              ? "" 
+              : _phoneNumberController.text.trim(),
+          email: _emailController.text.trim().isEmpty 
+              ? "" 
+              : _emailController.text.trim(),
+          gender: _selectedGender,
+          address: _addressController.text.trim().isEmpty 
+              ? "" 
+              : _addressController.text.trim(),
+        );
 
-      // Show success message
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Guest registered successfully!')),
-      );
+        final response = await ApiService.registerGuest(request);
 
-      // Clear form
-      _formKey.currentState!.reset();
-      _selectedGender = 'Male';
-      setState(() {});
+        if (mounted) {
+          setState(() {
+            _isSubmitting = false;
+          });
+
+          if (response != null) {
+            if (response.succeeded) {
+              // Show success message
+              ToastUtils.showSuccessToast(
+                context,
+                response.messages.isNotEmpty 
+                    ? response.messages.first 
+                    : 'Guest registered successfully!'
+              );
+
+              // Clear all form fields
+              _guestOwnerController.clear();
+              _lastNameController.clear();
+              _firstNameController.clear();
+              _middleNameController.clear();
+              _phoneNumberController.clear();
+              _emailController.clear();
+              _addressController.clear();
+              
+              // Reset gender and member details
+              _selectedGender = 'Male';
+              _guestOwnerDetails = null;
+              
+              setState(() {});
+            } else {
+              // Show error messages
+              ToastUtils.showMultipleToasts(context, response.messages);
+            }
+          } else {
+            ToastUtils.showErrorToast(context, 'Failed to register guest. Please try again.');
+          }
+        }
+      } catch (e) {
+        if (mounted) {
+          setState(() {
+            _isSubmitting = false;
+          });
+          ToastUtils.showErrorToast(context, 'Error: ${e.toString()}');
+        }
+      }
     }
   }
 
@@ -66,6 +178,7 @@ class _GuestRegistrationScreenState extends State<GuestRegistrationScreen> {
     required TextEditingController controller,
     String? Function(String?)? validator,
     TextInputType keyboardType = TextInputType.text,
+    bool isRequired = false,
   }) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 16.0),
@@ -77,7 +190,7 @@ class _GuestRegistrationScreenState extends State<GuestRegistrationScreen> {
         ),
         keyboardType: keyboardType,
         validator: validator ?? (value) {
-          if (value == null || value.trim().isEmpty) {
+          if (isRequired && (value == null || value.trim().isEmpty)) {
             return 'Please enter $label';
           }
           return null;
@@ -99,50 +212,99 @@ class _GuestRegistrationScreenState extends State<GuestRegistrationScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              _buildTextField(
-                label: 'Guest Owner',
-                controller: _guestOwnerController,
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  TextFormField(
+                    controller: _guestOwnerController,
+                    decoration: InputDecoration(
+                      labelText: 'Guest Owner (Member Number)',
+                      border: const OutlineInputBorder(),
+                      suffixIcon: _isValidatingOwner
+                          ? const SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: Padding(
+                                padding: EdgeInsets.all(8.0),
+                                child: CircularProgressIndicator(strokeWidth: 2),
+                              ),
+                            )
+                          : IconButton(
+                              icon: const Icon(Icons.search),
+                              onPressed: _validateGuestOwner,
+                            ),
+                    ),
+                    onChanged: _onGuestOwnerChanged,
+                    validator: (value) {
+                      if (value == null || value.trim().isEmpty) {
+                        return 'Please enter guest owner member number';
+                      }
+                      return null;
+                    },
+                  ),
+                  if (_guestOwnerDetails != null) ...[
+                    const SizedBox(height: 8),
+                    Card(
+                      child: Padding(
+                        padding: const EdgeInsets.all(12.0),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Member: ${_guestOwnerDetails!.fullName}',
+                              style: const TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text('Jamaat: ${_guestOwnerDetails!.jamaatName}'),
+                            Text('Circuit: ${_guestOwnerDetails!.circuitName}'),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
+              
               ),
-              _buildTextField(
-                label: 'Last Name',
-                controller: _lastNameController,
-              ),
-              _buildTextField(
-                label: 'First Name',
-                controller: _firstNameController,
-              ),
-              _buildTextField(
-                label: 'Middle Name',
-                controller: _middleNameController,
-              ),
-              _buildTextField(
-                label: 'Phone Number',
-                controller: _phoneNumberController,
-                keyboardType: TextInputType.phone,
-                validator: (value) {
-                  if (value == null || value.trim().isEmpty) {
-                    return 'Please enter phone number';
-                  }
-                  if (!RegExp(r'^\+?[\d\s-]+$').hasMatch(value)) {
-                    return 'Please enter a valid phone number';
-                  }
-                  return null;
-                },
-              ),
-              _buildTextField(
-                label: 'Email',
-                controller: _emailController,
-                keyboardType: TextInputType.emailAddress,
-                validator: (value) {
-                  if (value == null || value.trim().isEmpty) {
-                    return 'Please enter email';
-                  }
-                  if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(value)) {
-                    return 'Please enter a valid email';
-                  }
-                  return null;
-                },
-              ),
+              SizedBox(height: 16),
+                              _buildTextField(
+                  label: 'Last Name',
+                  controller: _lastNameController,
+                  isRequired: true,
+                ),
+                _buildTextField(
+                  label: 'First Name',
+                  controller: _firstNameController,
+                  isRequired: true,
+                ),
+                              _buildTextField(
+                  label: 'Middle Name',
+                  controller: _middleNameController,
+                ),
+                _buildTextField(
+                  label: 'Phone Number',
+                  controller: _phoneNumberController,
+                  keyboardType: TextInputType.phone,
+                  validator: (value) {
+                    if (value != null && value.trim().isNotEmpty && !RegExp(r'^\+?[\d\s-]+$').hasMatch(value)) {
+                      return 'Please enter a valid phone number';
+                    }
+                    return null;
+                  },
+                ),
+                _buildTextField(
+                  label: 'Email',
+                  controller: _emailController,
+                  keyboardType: TextInputType.emailAddress,
+                  validator: (value) {
+                    if (value != null && value.trim().isNotEmpty && !RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(value)) {
+                      return 'Please enter a valid email';
+                    }
+                    return null;
+                  },
+                ),
               Padding(
                 padding: const EdgeInsets.only(bottom: 16.0),
                 child: DropdownButtonFormField<String>(
@@ -170,18 +332,18 @@ class _GuestRegistrationScreenState extends State<GuestRegistrationScreen> {
                 label: 'Address',
                 controller: _addressController,
                 keyboardType: TextInputType.multiline,
-                validator: (value) {
-                  if (value == null || value.trim().isEmpty) {
-                    return 'Please enter address';
-                  }
-                  return null;
-                },
               ),
               const SizedBox(height: 20),
               ElevatedButton.icon(
-                onPressed: _submitForm,
-                icon: const Icon(Icons.check),
-                label: const Text('Register Guest'),
+                onPressed: _isSubmitting ? null : _submitForm,
+                icon: _isSubmitting 
+                    ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.check),
+                label: Text(_isSubmitting ? 'Registering...' : 'Register Guest'),
                 style: ElevatedButton.styleFrom(
                   padding: const EdgeInsets.symmetric(vertical: 16),
                 ),

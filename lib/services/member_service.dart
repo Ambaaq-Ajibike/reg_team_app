@@ -47,20 +47,23 @@ class MemberService {
     }
 
     return _mockMembers.where((member) {
-      if (query != null) {
+      bool matches = true;
+      
+      if (query != null && query.isNotEmpty) {
         final lowercaseQuery = query.toLowerCase();
-        if (member.name.toLowerCase().contains(lowercaseQuery) ||
-            member.memberNumber.toLowerCase().contains(lowercaseQuery)) {
-          return true;
-        }
+        matches = matches && (member.name.toLowerCase().contains(lowercaseQuery) ||
+            member.memberNumber.toLowerCase().contains(lowercaseQuery));
       }
-      if (jamaat != null && member.jamaat == jamaat) {
-        return true;
+      
+      if (jamaat != null && jamaat.isNotEmpty) {
+        matches = matches && member.jamaat == jamaat;
       }
-      if (circuit != null && member.circuit == circuit) {
-        return true;
+      
+      if (circuit != null && circuit.isNotEmpty) {
+        matches = matches && member.circuit == circuit;
       }
-      return false;
+      
+      return matches;
     }).toList();
   }
 

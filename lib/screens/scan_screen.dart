@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:qr_code_scanner/qr_code_scanner.dart';
 import '../services/member_service.dart';
 import '../models/member.dart';
+import '../utils/toast_utils.dart';
 
 class ScanScreen extends StatefulWidget {
   const ScanScreen({super.key});
@@ -24,6 +25,7 @@ class _ScanScreenState extends State<ScanScreen> {
   void _onQRViewCreated(QRViewController controller) {
     this.controller = controller;
     controller.scannedDataStream.listen((scanData) async {
+      final currentContext = context;
       if (_isProcessing || scanData.code == null) return;
       
       setState(() => _isProcessing = true);
@@ -34,17 +36,12 @@ class _ScanScreenState extends State<ScanScreen> {
         if (!mounted) return;
 
         if (member != null) {
-          await _showMemberDialog(member);
+          await _showMemberDialog(member, currentContext);
         } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Member not found')),
-          );
+          ToastUtils.showWarningToast(currentContext, 'Member not found');
         }
       } catch (e) {
-        if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: ${e.toString()}')),
-        );
+        ToastUtils.showErrorToast(currentContext, 'Error: ${e.toString()}');
       } finally {
         if (mounted) {
           setState(() => _isProcessing = false);
@@ -54,9 +51,9 @@ class _ScanScreenState extends State<ScanScreen> {
     });
   }
 
-  Future<void> _showMemberDialog(Member member) async {
+  Future<void> _showMemberDialog(Member member, BuildContext dialogContext) async {
     return showDialog(
-      context: context,
+      context: dialogContext,
       builder: (context) => AlertDialog(
         title: const Text('Member Found'),
         content: Column(
@@ -80,14 +77,9 @@ class _ScanScreenState extends State<ScanScreen> {
                 await MemberService().checkInMember(member, '1'); // Mock user ID
                 if (!mounted) return;
                 Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Member checked in successfully')),
-                );
+                ToastUtils.showSuccessToast(dialogContext, 'Member checked in successfully');
               } catch (e) {
-                if (!mounted) return;
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('Error: ${e.toString()}')),
-                );
+                ToastUtils.showErrorToast(dialogContext, 'Error: ${e.toString()}');
               }
             },
             child: const Text('Check In'),
