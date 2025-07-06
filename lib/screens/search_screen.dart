@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../services/member_service.dart';
 import '../models/member.dart';
 import '../utils/toast_utils.dart';
@@ -78,6 +79,9 @@ class _SearchScreenState extends State<SearchScreen> {
                     border: OutlineInputBorder(),
                     prefixIcon: Icon(Icons.search),
                   ),
+                  inputFormatters: [
+                    FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z0-9\s]')),
+                  ],
                 ),
                 const SizedBox(height: 16),
                 Row(

@@ -1,11 +1,11 @@
 {
-    "name": "reg_team_app",
-    "short_name": "reg_team_app",
+    "name": "Jalsa Registration",
+    "short_name": "Jalsa Reg",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",
     "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "description": "Jalsa Registration App for Ahmadiyya Nigeria",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

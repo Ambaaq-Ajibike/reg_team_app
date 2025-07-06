@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -111,6 +112,10 @@ class _LoginScreenState extends State<LoginScreen> {
                         border: OutlineInputBorder(),
                         prefixIcon: Icon(Icons.person),
                       ),
+                      keyboardType: TextInputType.number,
+                      inputFormatters: [
+                        FilteringTextInputFormatter.digitsOnly,
+                      ],
                       validator: (value) {
                         if (value == null || value.isEmpty) {
                           return 'Please enter your member number';

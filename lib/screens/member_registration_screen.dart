@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../services/api_service.dart';
 import '../models/member_details.dart';
 import '../utils/toast_utils.dart';
@@ -196,6 +197,10 @@ class _MemberRegistrationScreenState extends State<MemberRegistrationScreen> {
                                             onPressed: () => _fetchMemberDetails(index),
                                           ),
                                   ),
+                                  keyboardType: TextInputType.number,
+                                  inputFormatters: [
+                                    FilteringTextInputFormatter.digitsOnly,
+                                  ],
                                   onChanged: (value) {
                                     // Clear member details when text changes
                                     if (_memberDetails.length > index) {

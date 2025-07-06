@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../models/guest_registration.dart';
 import '../models/member_details.dart';
 import '../services/api_service.dart';
@@ -234,6 +235,10 @@ class _GuestRegistrationScreenState extends State<GuestRegistrationScreen> {
                               onPressed: _validateGuestOwner,
                             ),
                     ),
+                    keyboardType: TextInputType.number,
+                    inputFormatters: [
+                      FilteringTextInputFormatter.digitsOnly,
+                    ],
                     onChanged: _onGuestOwnerChanged,
                     validator: (value) {
                       if (value == null || value.trim().isEmpty) {
