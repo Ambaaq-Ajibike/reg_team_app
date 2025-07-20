@@ -6,6 +6,7 @@ import 'services/member_service.dart';
 import 'providers/auth_provider.dart';
 import 'providers/connectivity_provider.dart';
 import 'theme/app_theme.dart';
+import 'screens/splash_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -26,6 +27,7 @@ class MyApp extends StatefulWidget {
 
 class _MyAppState extends State<MyApp> {
   ThemeMode _themeMode = ThemeMode.light;
+  bool _showSplash = true;
 
   void toggleTheme() {
     setState(() {
@@ -37,10 +39,23 @@ class _MyAppState extends State<MyApp> {
   void initState() {
     super.initState();
     AppRouter.setThemeToggleCallback(toggleTheme);
+    Future.delayed(const Duration(seconds: 2), () {
+      if (mounted) {
+        setState(() {
+          _showSplash = false;
+        });
+      }
+    });
   }
 
   @override
   Widget build(BuildContext context) {
+    if (_showSplash) {
+      return const MaterialApp(
+        debugShowCheckedModeBanner: false,
+        home: SplashScreen(),
+      );
+    }
     return MultiProvider(
       providers: [
         ChangeNotifierProvider(
